@@ -1,28 +1,23 @@
-# 🚀 BF-Splashcraft
-**Il modo più veloce per creare Splash Images per Betaflight.**
+# BF-Splashcraft
+**A simple yet effective editor to create your custom betaflight splash images.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
-Stanco di combattere con i formati `.bmp` per i tuoi occhiali FPV? **BF-Splashcraft** converte automaticamente le tue immagini nel formato esatto richiesto da Betaflight.
+Tired of fighting with `.bmp` formats and resolutions for your FPV goggles? **BF-Splashcraft** automatically converts your images into the exact format required by Betaflight.
 
-## 🌐 Provalo subito (Web App)
-Non scaricare nulla! Usa la versione web qui: 
-👉 [LINK ALLA TUA APP SU STREAMLIT]
+## Try it now (Web App)
+No download required! Use the web version here:
+**[INSERISCI QUI IL LINK DELLA TUA APP STREAMLIT]**
 
-## ✨ Caratteristiche
-- **Supporto HD & Analogico:** Formati 288x72 e 160x128 preimpostati.
-- **Auto-Dithering:** Converte le immagini a colori in una palette compatibile con l'OSD.
-- **Download Istantaneo:** Scarica il file `.bmp` pronto per la SD.
+## Features
+- **Editor experience:** Import, move and scale images or text to create your style.
+- **Multiple layers:** Import as many images as you wish.
+- **Chroma and contrast settings:** Manage the contrast of the pictures to maximize visibility
+- **Background removal:** The software autodetects the background of the image and assigns the green color (0, 255, 0) to it.
+- **Custom fonts:** Import fonts and create your style.
 
-## 📸 Anteprima
-![Inserisci qui una tua GIF o Immagine trascinandola]
-
-## 🛠️ Installazione Locale (per sviluppatori)
-Se preferisci farlo girare sul tuo PC:
-1. Clona il repository: `git clone https://github.com/DavideRado/BF-Splashcraft.git`
-2. Installa le dipendenze: `pip install -r requirements.txt`
-3. Avvia l'app: `streamlit run app.py`
+## 📸 Preview
+[TRASCINA QUI UNA GIF O IMMAGINE DEL SOFTWARE IN FUNZIONE]
 
 ---
-Creato con ❤️ per la community FPV. Se ti piace, lascia una ⭐!
+Feel free to use this tool and make it better.
