@@ -25,49 +25,79 @@ def get_available_fonts():
 
 # --- RENDER LOGIC ---
 def generate_osd_image(layers):
-    canvas = Image.new("RGB", (BF_WIDTH, BF_HEIGHT), (0, 255, 0))
+    # Creazione immagine in modalità Palette (P)
+    # 0 = Nero, 1 = Verde (Trasparente BF), 2 = Bianco
+    canvas = Image.new("P", (BF_WIDTH, BF_HEIGHT), 1)
+    
+    # Definizione Palette rigida (RGB)
+    palette = [
+        0, 0, 0,       # Indice 0: Nero
+        0, 255, 0,     # Indice 1: Verde
+        255, 255, 255  # Indice 2: Bianco
+    ]
+    palette += [0] * (768 - len(palette)) # Riempimento obbligatorio a 256 colori
+    canvas.putpalette(palette)
+
     for l in layers:
         sc, xp, yp, th = l.get('scale', 1.0), l.get('x', 0), -l.get('y', 0), l.get('th', 128)
+        
+        # Mappatura colori per il disegno
+        c_idx = 2 if l.get('core') == "White" else 0
+        o_idx = 2 if l.get('out_col') == "White" else 0
+        
         if l['type'] == 'text':
             txt = l.get('content', 'TEXT')
             try:
                 f_p = os.path.join(FONT_DIR, l['font']) if l.get('font') else None
                 font = ImageFont.truetype(f_p, int(32 * sc)) if f_p else ImageFont.load_default()
-            except: font = ImageFont.load_default()
+            except: 
+                font = ImageFont.load_default()
             
-            c_rgb = (255, 255, 255) if l.get('core')=="White" else (0, 0, 0)
-            o_rgb = (255, 255, 255) if l.get('out_col')=="White" else (0, 0, 0)
             d = ImageDraw.Draw(canvas)
             bbox = d.textbbox((0, 0), txt, font=font)
             tx, ty = (BF_WIDTH - (bbox[2]-bbox[0])) // 2 + xp, (BF_HEIGHT - (bbox[3]-bbox[1])) // 2 + yp
             
+            # Rendering Ombre (senza anti-alias grazie alla modalità P)
             if l.get('sh_count', 0) > 0:
                 rad = math.radians(l.get('sh_a', 45))
                 for s_i in range(1, l['sh_count'] + 1):
                     ox, oy = int(math.cos(rad) * l['sh_d'] * s_i), int(math.sin(rad) * l['sh_d'] * s_i)
-                    d.text((tx+ox, ty+oy), txt, font=font, fill=o_rgb)
+                    d.text((tx+ox, ty+oy), txt, font=font, fill=o_idx)
 
+            # Rendering Bordo
             if l.get('out_col') != "None":
                 o_th = l.get('o_th', 2)
                 for ox in range(-o_th, o_th+1):
                     for oy in range(-o_th, o_th+1):
-                        if ox*ox + oy*oy <= o_th**2: d.text((tx+ox, ty+oy), txt, font=font, fill=o_rgb)
+                        if ox*ox + oy*oy <= o_th**2: 
+                            d.text((tx+ox, ty+oy), txt, font=font, fill=o_idx)
             
-            d.text((tx, ty), txt, font=font, fill=c_rgb)
+            # Testo principale
+            d.text((tx, ty), txt, font=font, fill=c_idx)
         
         elif l['type'] == 'image':
             img_rgba = l['content'].convert("RGBA")
             data = np.array(img_rgba)
+            
+            # Chroma Key per la trasparenza dell'asset caricato
             dist = np.linalg.norm(data[:, :, :3] - np.array(l.get('chr_c', (0,0,0))), axis=2)
             data[dist <= l.get('chr_t', 20)] = [0,0,0,0]
+            
             img_p = Image.fromarray(data)
             ratio = min(BF_WIDTH/img_p.width, BF_HEIGHT/img_p.height) * sc
             img_p = img_p.resize((max(1, int(img_p.width*ratio)), max(1, int(img_p.height*ratio))), Image.NEAREST)
-            temp = Image.new("RGBA", (BF_WIDTH, BF_HEIGHT), (0,0,0,0))
-            temp.paste(img_p, ((BF_WIDTH-img_p.width)//2 + xp, (BF_HEIGHT-img_p.height)//2 + yp))
-            gray, alpha = np.array(temp.convert("L")), np.array(temp.getchannel('A'))
-            canvas.paste((0,0,0), (0,0), Image.fromarray(np.where((alpha > 128) & (gray <= th), 255, 0).astype('uint8')))
-            canvas.paste((255,255,255), (0,0), Image.fromarray(np.where((alpha > 128) & (gray > th), 255, 0).astype('uint8')))
+            
+            # Trasformazione in maschere binarie per evitare colori intermedi
+            gray = np.array(img_p.convert("L"))
+            alpha = np.array(img_p.getchannel('A'))
+            
+            mask_white = Image.fromarray(np.where((alpha > 128) & (gray > th), 255, 0).astype('uint8'))
+            mask_black = Image.fromarray(np.where((alpha > 128) & (gray <= th), 255, 0).astype('uint8'))
+            
+            pos = ((BF_WIDTH-img_p.width)//2 + xp, (BF_HEIGHT-img_p.height)//2 + yp)
+            canvas.paste(2, pos, mask_white) # Incolla Bianco
+            canvas.paste(0, pos, mask_black) # Incolla Nero
+            
     return canvas
 
 # --- UI STYLE ---
@@ -79,23 +109,15 @@ st.markdown(f"""
     label {{ font-size: 11px !important; font-weight: 700 !important; color: #475569; }}
     .preview-container {{ display: flex; justify-content: center; background: #1e293b; padding: 20px; border-radius: 8px; margin-top: 20px; }}
     .preview-img {{ width: {BOX_WIDTH}px; height: {BOX_HEIGHT}px; image-rendering: pixelated; border: 2px solid white; }}
-    
-    /* Branding Styles */
     .brand-title {{ font-size: 24px; font-weight: 800; color: #0f172a; margin-bottom: -5px; }}
     .brand-subtitle {{ font-size: 14px; font-weight: 400; color: #94a3b8; margin-bottom: 20px; }}
-
-    div[role="radiogroup"] > label[data-baseweb="radio"] {{
-        background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 10px; border-radius: 4px; margin-right: 5px;
-    }}
-    div[role="radiogroup"] > label[aria-checked="true"] {{
-        background: #0f172a !important; color: white !important;
-    }}
+    div[role="radiogroup"] > label[data-baseweb="radio"] {{ background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 10px; border-radius: 4px; margin-right: 5px; }}
+    div[role="radiogroup"] > label[aria-checked="true"] {{ background: #0f172a !important; color: white !important; }}
     </style>
     """, unsafe_allow_html=True)
 
 # --- SIDEBAR: IMPORT ---
 with st.sidebar:
-    # --- BRANDING SECTION ---
     st.markdown('<div class="brand-title">BF SplashCraft</div>', unsafe_allow_html=True)
     st.markdown('<div class="brand-subtitle">by Davide Rado</div>', unsafe_allow_html=True)
     
@@ -130,7 +152,6 @@ with st.sidebar:
                     idx = st.session_state.selected_idx
                     if st.session_state.layers[idx]['type'] == 'text':
                         st.session_state.layers[idx]['font'] = new_f.name
-                        st.session_state[f"font_sel_{idx}"] = new_f.name
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -196,18 +217,22 @@ with c2:
             l['chr_t'] = cc2.slider("Tolerance", 0, 150, int(l['chr_t']), key=f"chr_t_{idx}")
             l['th'] = st.slider("B&W Threshold", 0, 255, int(l['th']), key=f"th_{idx}")
 
-# --- PREVIEW ---
+# --- PREVIEW & EXPORT ---
 st.divider()
 img_out = generate_osd_image(st.session_state.layers)
+
+# Per la preview Streamlit dobbiamo convertire in RGB temporaneamente
+preview_img = img_out.convert("RGB").resize((BOX_WIDTH, BOX_HEIGHT), resample=Image.NEAREST)
 buf = io.BytesIO()
-img_out.resize((BOX_WIDTH, BOX_HEIGHT), resample=Image.NEAREST).save(buf, format="PNG")
+preview_img.save(buf, format="PNG")
 st.markdown(f'<div class="preview-container"><img src="data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}" class="preview-img"></div>', unsafe_allow_html=True)
 
-# --- EXPORT BUTTON ---
+# Export in BMP mantenendo la palette indicizzata corretta
 btn_buf = io.BytesIO()
 img_out.save(btn_buf, format="BMP")
+
 st.download_button(
-    label="💾 EXPORT AS .BMP", 
+    label="💾 DOWNLOAD LOGO FOR BETAFLIGHT (.BMP)", 
     data=btn_buf.getvalue(), 
     file_name="splash.bmp", 
     mime="image/bmp", 
