@@ -7,7 +7,7 @@ Tired of fighting with `.bmp` formats and resolutions for your FPV goggles? **BF
 
 ## Try it now (Web App)
 No download required! Use the web version here:
-🔗**https://bf-splashcraft.streamlit.app/**🔗
+--> **https://bf-splashcraft.streamlit.app/** <--
 
 ## Features
 - **Editor experience:** Import, move and scale images or text to create your style.
