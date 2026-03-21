@@ -5,7 +5,7 @@
 
 Tired of fighting with `.bmp` formats and resolutions for your FPV goggles? **BF-Splashcraft** automatically converts your images into the exact format required by Betaflight.
 
-## Try it now (Web App)
+## Give it a try
 No download required! Use the web version here:
 --> **https://bf-splashcraft.streamlit.app/** <--
 
