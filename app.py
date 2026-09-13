@@ -42,8 +42,14 @@ def generate_osd_image(layers):
         sc, xp, yp, th = l.get('scale', 1.0), l.get('x', 0), -l.get('y', 0), l.get('th', 128)
         
         # Mappatura colori per il disegno
-        c_idx = 2 if l.get('core') == "White" else 0
         o_idx = 2 if l.get('out_col') == "White" else 0
+        match l.get('core'):
+            case "Black":
+                c_idx = 0
+            case "None":
+                c_idx = 1
+            case "White":
+                c_idx = 2
         
         if l['type'] == 'text':
             txt = l.get('content', 'TEXT')
@@ -199,7 +205,8 @@ with c2:
             fonts = get_available_fonts()
             if l['font'] not in fonts and fonts: l['font'] = fonts[0]
             l['font'] = cc1.selectbox("Active Font", fonts, index=fonts.index(l['font']) if l['font'] in fonts else 0, key=f"font_sel_{idx}")
-            l['core'] = cc2.selectbox("Core Color", ["White", "Black"], index=0 if l['core']=="White" else 1, key=f"core_{idx}")
+            core_opts = ["Black", "White", "None"]
+            l['core'] = cc2.selectbox("Core Color", core_opts, index=core_opts.index(l['core']), key=f"core_{idx}")
             st.markdown("### Outline & Shadows")
             o1, o2 = st.columns([1, 2])
             out_opts = ["Black", "White", "None"]
