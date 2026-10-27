@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import io, math, os, base64
@@ -7,10 +7,13 @@ import io, math, os, base64
 BF_WIDTH, BF_HEIGHT = 288, 72
 PREVIEW_SCALE = 3
 BOX_WIDTH, BOX_HEIGHT = BF_WIDTH * PREVIEW_SCALE, BF_HEIGHT * PREVIEW_SCALE
-FONT_DIR = "fonts"
+
+# Percorso assoluto sicuro basato sulla posizione dello script corrente
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FONT_DIR = os.path.join(SCRIPT_DIR, "fonts")
 
 if not os.path.exists(FONT_DIR):
-    os.makedirs(FONT_DIR)
+    os.makedirs(FONT_DIR, exist_ok=True)
 
 st.set_page_config(page_title="BF SplashCraft", layout="wide")
 
@@ -21,7 +24,15 @@ if 'selected_idx' not in st.session_state:
     st.session_state.selected_idx = 0
 
 def get_available_fonts():
-    return sorted([f for f in os.listdir(FONT_DIR) if f.lower().endswith(('.ttf', '.otf'))])
+    """Ricerca sicura e robusta dei font nella cartella dedicata."""
+    if not os.path.exists(FONT_DIR):
+        os.makedirs(FONT_DIR, exist_ok=True)
+        return []
+    try:
+        files = os.listdir(FONT_DIR)
+        return sorted([f for f in files if f.lower().endswith(('.ttf', '.otf'))])
+    except Exception:
+        return []
 
 # --- RENDER LOGIC ---
 def generate_osd_image(layers):
@@ -49,7 +60,7 @@ def generate_osd_image(layers):
             txt = l.get('content', 'TEXT')
             try:
                 f_p = os.path.join(FONT_DIR, l['font']) if l.get('font') else None
-                font = ImageFont.truetype(f_p, int(32 * sc)) if f_p else ImageFont.load_default()
+                font = ImageFont.truetype(f_p, int(32 * sc)) if f_p and os.path.exists(f_p) else ImageFont.load_default()
             except: 
                 font = ImageFont.load_default()
             
@@ -157,7 +168,11 @@ with st.sidebar:
     
     st.divider()
     if st.button("🗑️ Reset Font Library", use_container_width=True):
-        for f in get_available_fonts(): os.remove(os.path.join(FONT_DIR, f))
+        for f in get_available_fonts(): 
+            try:
+                os.remove(os.path.join(FONT_DIR, f))
+            except:
+                pass
         st.rerun()
 
 # --- MAIN UI ---
@@ -197,8 +212,16 @@ with c2:
             l['content'] = st.text_input("Display Text", l['content'], key=f"content_{idx}")
             cc1, cc2 = st.columns(2)
             fonts = get_available_fonts()
-            if l['font'] not in fonts and fonts: l['font'] = fonts[0]
-            l['font'] = cc1.selectbox("Active Font", fonts, index=fonts.index(l['font']) if l['font'] in fonts else 0, key=f"font_sel_{idx}")
+            
+            # Controllo di sicurezza nel caso in cui il font salvato nel layer non sia temporaneamente disponibile
+            if fonts:
+                if l['font'] not in fonts: 
+                    l['font'] = fonts[0]
+                font_index = fonts.index(l['font'])
+            else:
+                font_index = 0
+                
+            l['font'] = cc1.selectbox("Active Font", fonts if fonts else ["No fonts available"], index=font_index if fonts else 0, key=f"font_sel_{idx}", disabled=not fonts)
             l['core'] = cc2.selectbox("Core Color", ["White", "Black"], index=0 if l['core']=="White" else 1, key=f"core_{idx}")
             st.markdown("### Outline & Shadows")
             o1, o2 = st.columns([1, 2])
