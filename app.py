@@ -43,7 +43,7 @@ def generate_osd_image(layers):
     # Definizione Palette rigida (RGB)
     palette = [
         0, 0, 0,       # Indice 0: Nero
-        0, 255, 0,     # Indice 1: Verde
+        0, 255, 0,     # Indice 1: Verde (Trasparente)
         255, 255, 255  # Indice 2: Bianco
     ]
     palette += [0] * (768 - len(palette)) # Riempimento obbligatorio a 256 colori
@@ -53,7 +53,14 @@ def generate_osd_image(layers):
         sc, xp, yp, th = l.get('scale', 1.0), l.get('x', 0), -l.get('y', 0), l.get('th', 128)
         
         # Mappatura colori per il disegno
-        c_idx = 2 if l.get('core') == "White" else 0
+        core_val = l.get('core', 'White')
+        if core_val == "White":
+            c_idx = 2
+        elif core_val == "Black":
+            c_idx = 0
+        else:
+            c_idx = 1  # Transparent (Verde)
+            
         o_idx = 2 if l.get('out_col') == "White" else 0
         
         if l['type'] == 'text':
@@ -182,7 +189,11 @@ with c1:
     ca, cb = st.columns(2)
     if ca.button("+ NEW TEXT", use_container_width=True):
         f_list = get_available_fonts()
-        st.session_state.layers.append({'type':'text','content':'NEW TEXT','x':0,'y':0,'scale':1.0,'sh_count':0,'sh_d':2,'sh_a':45,'core':'White','out_col':'Black','o_th':2,'font':f_list[0] if f_list else None, 'th':128})
+        st.session_state.layers.append({
+            'type':'text', 'content':'NEW TEXT', 'x':0, 'y':0, 'scale':1.0,
+            'sh_count':0, 'sh_d':2, 'sh_a':45, 'core':'White', 'out_col':'Black',
+            'o_th':2, 'font':f_list[0] if f_list else None, 'th':128
+        })
         st.session_state.selected_idx = len(st.session_state.layers)-1
         st.rerun()
     if cb.button("DELETE LAYER", use_container_width=True) and st.session_state.layers:
@@ -213,7 +224,6 @@ with c2:
             cc1, cc2 = st.columns(2)
             fonts = get_available_fonts()
             
-            # Controllo di sicurezza nel caso in cui il font salvato nel layer non sia temporaneamente disponibile
             if fonts:
                 if l['font'] not in fonts: 
                     l['font'] = fonts[0]
@@ -222,11 +232,16 @@ with c2:
                 font_index = 0
                 
             l['font'] = cc1.selectbox("Active Font", fonts if fonts else ["No fonts available"], index=font_index if fonts else 0, key=f"font_sel_{idx}", disabled=not fonts)
-            l['core'] = cc2.selectbox("Core Color", ["White", "Black"], index=0 if l['core']=="White" else 1, key=f"core_{idx}")
+            
+            core_opts = ["White", "Black", "Transparent"]
+            current_core = l.get('core', 'White')
+            core_idx = core_opts.index(current_core) if current_core in core_opts else 0
+            l['core'] = cc2.selectbox("Core Color", core_opts, index=core_idx, key=f"core_{idx}")
+            
             st.markdown("### Outline & Shadows")
             o1, o2 = st.columns([1, 2])
             out_opts = ["Black", "White", "None"]
-            l['out_col'] = o1.selectbox("Border Color", out_opts, index=out_opts.index(l['out_col']), key=f"out_col_{idx}")
+            l['out_col'] = o1.selectbox("Border Color", out_opts, index=out_opts.index(l['out_col']) if l['out_col'] in out_opts else 0, key=f"out_col_{idx}")
             l['o_th'] = o2.slider("Border Thickness", 0, 10, int(l['o_th']), key=f"o_th_{idx}")
             s1, s2, s3 = st.columns(3)
             l['sh_count'] = s1.slider("Shadow Levels", 0, 5, int(l['sh_count']), key=f"sh_count_{idx}")
@@ -244,13 +259,11 @@ with c2:
 st.divider()
 img_out = generate_osd_image(st.session_state.layers)
 
-# Per la preview Streamlit dobbiamo convertire in RGB temporaneamente
 preview_img = img_out.convert("RGB").resize((BOX_WIDTH, BOX_HEIGHT), resample=Image.NEAREST)
 buf = io.BytesIO()
 preview_img.save(buf, format="PNG")
 st.markdown(f'<div class="preview-container"><img src="data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}" class="preview-img"></div>', unsafe_allow_html=True)
 
-# Export in BMP mantenendo la palette indicizzata corretta
 btn_buf = io.BytesIO()
 img_out.save(btn_buf, format="BMP")
 
